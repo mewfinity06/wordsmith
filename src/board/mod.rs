@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use anyhow::anyhow;
+
 pub enum Direction {
     Vertical,
     Horizontal,
@@ -15,21 +17,21 @@ impl Board {
     const ROW_LENGTH: usize = 15;
     const COL_LENGTH: usize = 15;
 
-    fn index_to_coords(i: usize) -> Result<(usize, usize), String> {
+    fn index_to_coords(i: usize) -> anyhow::Result<(usize, usize)> {
         if i < Self::ROW_LENGTH * Self::COL_LENGTH {
             let y = i / Self::COL_LENGTH;
             let x = i % Self::COL_LENGTH;
             Ok((x, y))
         } else {
-            Err("Index out of bounds".to_string())
+            Err(anyhow!("Index out of bounds"))
         }
     }
 
-    fn coords_to_index(x: usize, y: usize) -> Result<usize, String> {
+    fn coords_to_index(x: usize, y: usize) -> anyhow::Result<usize> {
         if x < Self::COL_LENGTH && y < Self::ROW_LENGTH {
             Ok(y * Self::COL_LENGTH + x)
         } else {
-            Err("Coords out of index".to_string())
+            Err(anyhow!("Coords out of index"))
         }
     }
 
@@ -193,9 +195,9 @@ impl Board {
         direction: Direction,
         start_x: usize,
         start_y: usize,
-    ) -> Result<(), String> {
+    ) -> anyhow::Result<()> {
         if start_x >= Self::COL_LENGTH || start_y >= Self::ROW_LENGTH {
-            return Err(format!(
+            return Err(anyhow!(
                 "({}, {}) is out of bounds ({}, {})",
                 start_x,
                 start_y,
@@ -207,7 +209,7 @@ impl Board {
         match direction {
             Direction::Vertical => {
                 if start_y + word.len() >= Self::COL_LENGTH {
-                    return Err(format!(
+                    return Err(anyhow!(
                         "({}, {}) is out of bounds ({}, {})",
                         start_y,
                         start_x,
@@ -222,7 +224,7 @@ impl Board {
             }
             Direction::Horizontal => {
                 if start_x + word.len() >= Self::ROW_LENGTH {
-                    return Err(format!(
+                    return Err(anyhow!(
                         "({}, {}) is out of bounds ({}, {})",
                         start_y,
                         start_x,
@@ -248,22 +250,22 @@ impl Board {
         self.elements[y * Self::ROW_LENGTH + x]
     }
 
-    fn set_char(&mut self, y: usize, x: usize, c: char) -> Result<(), String> {
+    fn set_char(&mut self, y: usize, x: usize, c: char) -> anyhow::Result<()> {
         if x < Self::COL_LENGTH && y < Self::ROW_LENGTH {
             let index = Self::coords_to_index(x, y)?;
             self.elements[index] = c;
             Ok(())
         } else {
-            Err("Coordinates out of bounds".to_string())
+            Err(anyhow!("Coordinates out of bounds"))
         }
     }
 
-    fn set_char_i(&mut self, i: usize, c: char) -> Result<(), String> {
+    fn set_char_i(&mut self, i: usize, c: char) -> anyhow::Result<()> {
         if i < Self::BOARD_SIZE {
             self.elements[i] = c;
             Ok(())
         } else {
-            Err("Index out of bounds".to_string())
+            Err(anyhow!("Index out of bounds"))
         }
     }
 }
