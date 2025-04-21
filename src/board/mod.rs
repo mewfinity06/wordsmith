@@ -136,21 +136,11 @@ impl Board {
             }
         }
 
-        // Get the terminal size
-        let size = termsize::get().expect("We should always be able to get the terminal size!");
-
-        let row_padding = (size.rows as usize).saturating_sub(18) / 2;
-
         print!("{}", Self::TEXT_COLOR_DEF);
-        print_n_char(row_padding, ' ');
         println!();
-        print_n_char(row_padding, ' ');
         println!("-----------------------------------");
-        print_n_char(row_padding, ' ');
         println!("|            WORDSMITH            |");
-        print_n_char(row_padding, ' ');
         println!("-----------------------------------");
-        print_n_char(row_padding, ' ');
         print!("|   ");
         for i in 0..Self::COL_LENGTH {
             print!("{:X} ", i);
@@ -160,7 +150,6 @@ impl Board {
         let mut row: usize = 0;
         for (i, e) in self.elements.iter().enumerate() {
             if i % Self::COL_LENGTH == 0 {
-                print_n_char(row_padding, ' ');
                 print!("| {:X} ", row);
                 row += 1;
             }
@@ -184,7 +173,6 @@ impl Board {
                 println!("|")
             }
         }
-        print_n_char(row_padding, ' ');
         println!("-----------------------------------");
         println!("{}", Self::TERMINAL_COLOR_DEFAULT);
     }
