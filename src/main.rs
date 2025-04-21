@@ -1,8 +1,13 @@
 mod board;
 
-use board::Board;
+use board::*;
 
-fn main() {
-    let board = Board::new();
+fn main() -> Result<(), String> {
+    let mut board = Board::new();
+
+    board.place_word("hello", Direction::Horizontal, 0x7, 0x7)?;
+
     board.display();
+
+    Ok(())
 }

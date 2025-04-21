@@ -1,4 +1,13 @@
-pub struct Board { elements: [char; Self::BOARD_SIZE], }
+#![allow(dead_code)]
+
+pub enum Direction {
+    Vertical,
+    Horizontal,
+}
+
+pub struct Board {
+    elements: [char; Self::BOARD_SIZE],
+}
 
 impl Board {
     // Size constants
@@ -27,12 +36,12 @@ impl Board {
     // Print constants
     // (See https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797)
     const TERMINAL_COLOR_DEFAULT: &str = "\x1b[39m\x1b[49m";
-    const CENTER_SQUARE_COLOR:    &str = "\x1b[48;5;226m\x1b[38;5;16m";
-    const TEXT_COLOR_DEF:         &str = "\x1b[39m\x1b[49m";
-    const TW_SCORE_COLOR:         &str = "\x1b[48;5;161m\x1b[38;5;16m";
-    const DW_SCORE_COLOR:         &str = "\x1b[48;5;217m\x1b[38;5;16m";
-    const TL_SCORE_COLOR:         &str = "\x1b[48;5;32m\x1b[38;5;16m";
-    const DL_SCORE_COLOR:         &str = "\x1b[45;5;51m\x1b[38;5;16m";
+    const CENTER_SQUARE_COLOR: &str = "\x1b[48;5;226m\x1b[38;5;16m";
+    const TEXT_COLOR_DEF: &str = "\x1b[39m\x1b[49m";
+    const TW_SCORE_COLOR: &str = "\x1b[48;5;161m\x1b[38;5;16m";
+    const DW_SCORE_COLOR: &str = "\x1b[48;5;217m\x1b[38;5;16m";
+    const TL_SCORE_COLOR: &str = "\x1b[48;5;32m\x1b[38;5;16m";
+    const DL_SCORE_COLOR: &str = "\x1b[45;5;51m\x1b[38;5;16m";
 
     // Positions (y, x)
     const TW_SCORE_POS: &[(usize, usize)] = &[
@@ -171,8 +180,6 @@ impl Board {
             print!("{}{} ", e, Self::TEXT_COLOR_DEF);
             if (i + 1) % Self::COL_LENGTH == 0 {
                 println!("|")
-
-
             }
         }
         print_n_char(row_padding, ' ');
@@ -180,15 +187,68 @@ impl Board {
         println!("{}", Self::TERMINAL_COLOR_DEFAULT);
     }
 
+    pub fn place_word(
+        &mut self,
+        word: &str,
+        direction: Direction,
+        start_x: usize,
+        start_y: usize,
+    ) -> Result<(), String> {
+        if start_x >= Self::COL_LENGTH || start_y >= Self::ROW_LENGTH {
+            return Err(format!(
+                "({}, {}) is out of bounds ({}, {})",
+                start_x,
+                start_y,
+                Self::COL_LENGTH,
+                Self::ROW_LENGTH,
+            ));
+        }
+
+        match direction {
+            Direction::Vertical => {
+                if start_y + word.len() >= Self::COL_LENGTH {
+                    return Err(format!(
+                        "({}, {}) is out of bounds ({}, {})",
+                        start_y,
+                        start_x,
+                        Self::COL_LENGTH,
+                        Self::ROW_LENGTH,
+                    ));
+                }
+
+                for (i, c) in word.as_bytes().iter().enumerate() {
+                    self.set_char(start_x + i, start_y, *c as char)?;
+                }
+            }
+            Direction::Horizontal => {
+                if start_x + word.len() >= Self::ROW_LENGTH {
+                    return Err(format!(
+                        "({}, {}) is out of bounds ({}, {})",
+                        start_y,
+                        start_x,
+                        Self::COL_LENGTH,
+                        Self::ROW_LENGTH,
+                    ));
+                }
+
+                for (i, c) in word.as_bytes().iter().enumerate() {
+                    self.set_char(start_x, start_y + i, *c as char)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     fn get_char_i(&self, i: usize) -> char {
         self.elements[i]
     }
 
-    fn get_char(&self, x: usize, y: usize) -> char {
+    fn get_char(&self, y: usize, x: usize) -> char {
         self.elements[y * Self::ROW_LENGTH + x]
     }
 
-    fn set_char(&mut self, x: usize, y: usize, c: char) -> Result<(), String> {
+    fn set_char(&mut self, y: usize, x: usize, c: char) -> Result<(), String> {
         if x < Self::COL_LENGTH && y < Self::ROW_LENGTH {
             let index = Self::coords_to_index(x, y)?;
             self.elements[index] = c;
