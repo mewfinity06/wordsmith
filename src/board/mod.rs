@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
 
 pub enum Direction {
     Vertical,
@@ -8,30 +8,47 @@ pub enum Direction {
 }
 
 pub struct Board {
-    elements: [char; Self::BOARD_SIZE],
+    elements: [[char; Self::ROW_LENGTH]; Self::COL_LENGTH],
 }
 
 impl Board {
     // Size constants
-    const BOARD_SIZE: usize = Self::ROW_LENGTH * Self::COL_LENGTH;
     const ROW_LENGTH: usize = 15;
     const COL_LENGTH: usize = 15;
 
     fn index_to_coords(i: usize) -> anyhow::Result<(usize, usize)> {
-        if i < Self::ROW_LENGTH * Self::COL_LENGTH {
-            let y = i / Self::COL_LENGTH;
-            let x = i % Self::COL_LENGTH;
-            Ok((x, y))
+        Self::bounds_check_index(i)?;
+
+        let y = i / Self::ROW_LENGTH;
+        let x = i % Self::COL_LENGTH;
+
+        Ok((y, x))
+    }
+
+    fn coords_to_index(y: usize, x: usize) -> anyhow::Result<usize> {
+        Self::bounds_check_coords(y, x)?;
+        Ok(y * Self::ROW_LENGTH + x)
+    }
+
+    fn bounds_check_coords(y: usize, x: usize) -> anyhow::Result<()> {
+        if x > Self::COL_LENGTH || y > Self::ROW_LENGTH {
+            Err(anyhow!(
+                "(y: {:X}, x: {:X}) is out of bounds. Expected (y: {:X}, x: {:X})",
+                y,
+                x,
+                Self::ROW_LENGTH,
+                Self::COL_LENGTH
+            ))
         } else {
-            Err(anyhow!("Index out of bounds"))
+            Ok(())
         }
     }
 
-    fn coords_to_index(x: usize, y: usize) -> anyhow::Result<usize> {
-        if x < Self::COL_LENGTH && y < Self::ROW_LENGTH {
-            Ok(y * Self::COL_LENGTH + x)
+    fn bounds_check_index(i: usize) -> anyhow::Result<()> {
+        if i >= Self::ROW_LENGTH * Self::COL_LENGTH {
+            Err(anyhow!("Index out of bounds"))
         } else {
-            Err(anyhow!("Coords out of index"))
+            Ok(())
         }
     }
 
@@ -118,17 +135,21 @@ impl Board {
     const STAR_CHAR: char = '*';
 
     pub fn new() -> Self {
-        let mut elements = ['_'; Self::BOARD_SIZE];
-        if let Ok(center_index) =
-            Self::coords_to_index(Self::CENTER_SQUARE.0, Self::CENTER_SQUARE.1)
-        {
-            elements[center_index] = Self::STAR_CHAR;
-        }
+        let mut elements = [['_'; Self::ROW_LENGTH]; Self::COL_LENGTH];
+
+        elements[Self::CENTER_SQUARE.1][Self::CENTER_SQUARE.0] = Self::STAR_CHAR;
+
         Self { elements }
     }
 
-    // TODO: Center the board display in the middle of the terminal...
-    // Maybe use Crossterm? Or maybe just use Rust std::???
+    /// Displays the board in a 15x15 grid
+    /// ```
+    ///     0x0 0x1 0x2 ...
+    /// 0x0 '_' '_' '_'
+    /// 0x1 '_' '_' '_'
+    /// 0x2 '_' '_' '_'
+    /// ...
+    /// ```
     pub fn display(&self) {
         fn print_n_char(len: usize, c: char) {
             for _ in 0..len {
@@ -147,113 +168,83 @@ impl Board {
         }
         println!("|");
 
-        let mut row: usize = 0;
-        for (i, e) in self.elements.iter().enumerate() {
-            if i % Self::COL_LENGTH == 0 {
-                print!("| {:X} ", row);
-                row += 1;
+        for (index_r, row) in self.elements.iter().enumerate() {
+            print!("| {:X} ", index_r);
+
+            for (index_c, c) in row.iter().enumerate() {
+                let coords = (index_r, index_c);
+
+                if Self::TW_SCORE_POS.contains(&coords) {
+                    print!("{}", Self::TW_SCORE_COLOR);
+                } else if Self::DW_SCORE_POS.contains(&coords) {
+                    print!("{}", Self::DW_SCORE_COLOR);
+                } else if Self::TL_SCORE_POS.contains(&coords) {
+                    print!("{}", Self::TL_SCORE_COLOR);
+                } else if Self::DL_SCORE_POS.contains(&coords) {
+                    print!("{}", Self::DL_SCORE_COLOR);
+                } else if Self::CENTER_SQUARE == coords {
+                    print!("{}", Self::CENTER_SQUARE_COLOR);
+                }
+                print!("{}{} ", c, Self::TEXT_COLOR_DEF)
             }
 
-            let coords =
-                Self::index_to_coords(i).expect("Value 'i' should always be a valid index.");
-
-            if Self::TW_SCORE_POS.contains(&coords) {
-                print!("{}", Self::TW_SCORE_COLOR);
-            } else if Self::DW_SCORE_POS.contains(&coords) {
-                print!("{}", Self::DW_SCORE_COLOR);
-            } else if Self::TL_SCORE_POS.contains(&coords) {
-                print!("{}", Self::TL_SCORE_COLOR);
-            } else if Self::DL_SCORE_POS.contains(&coords) {
-                print!("{}", Self::DL_SCORE_COLOR);
-            } else if Self::CENTER_SQUARE == coords {
-                print!("{}", Self::CENTER_SQUARE_COLOR);
-            }
-            print!("{}{} ", e, Self::TEXT_COLOR_DEF);
-            if (i + 1) % Self::COL_LENGTH == 0 {
-                println!("|")
-            }
+            println!("|");
         }
+
         println!("-----------------------------------");
         println!("{}", Self::TERMINAL_COLOR_DEFAULT);
     }
 
-    pub fn place_word(
-        &mut self,
-        word: &str,
-        direction: Direction,
-        start_x: usize,
-        start_y: usize,
-    ) -> anyhow::Result<()> {
-        if start_x >= Self::COL_LENGTH || start_y >= Self::ROW_LENGTH {
-            return Err(anyhow!(
-                "({}, {}) is out of bounds ({}, {})",
-                start_x,
-                start_y,
-                Self::COL_LENGTH,
-                Self::ROW_LENGTH,
-            ));
-        }
+    pub fn place_word_horizontal(&mut self, word: &str, y: usize, x: usize) -> anyhow::Result<()> {
+        // Check if start coords are in bounds
+        Self::bounds_check_coords(y, x)?;
 
-        match direction {
-            Direction::Vertical => {
-                if start_y + word.len() >= Self::COL_LENGTH {
-                    return Err(anyhow!(
-                        "({}, {}) is out of bounds ({}, {})",
-                        start_y,
-                        start_x,
-                        Self::COL_LENGTH,
-                        Self::ROW_LENGTH,
-                    ));
-                }
+        // Check if end coords are in bounds
+        Self::bounds_check_coords(y, x + word.len()).context(format!(
+            "Word '{}' len does not pass bounds check | Start: (y: {:X}, x: {:X}), End: (y: {:X}, x: {:X})",
+            word,
+            y,
+            x,
+            y,
+            x + word.len()
+        ))?;
 
-                for (i, c) in word.as_bytes().iter().enumerate() {
-                    self.set_char(start_x + i, start_y, *c as char)?;
-                }
-            }
-            Direction::Horizontal => {
-                if start_x + word.len() >= Self::ROW_LENGTH {
-                    return Err(anyhow!(
-                        "({}, {}) is out of bounds ({}, {})",
-                        start_y,
-                        start_x,
-                        Self::COL_LENGTH,
-                        Self::ROW_LENGTH,
-                    ));
-                }
-
-                for (i, c) in word.as_bytes().iter().enumerate() {
-                    self.set_char(start_x, start_y + i, *c as char)?;
-                }
+        // If both succeed, then we must be able to place the word
+        let row = &mut self.elements[y];
+        let mut word_chars = word.chars();
+        for i in 0..word.len() {
+            if let Some(char) = word_chars.next() {
+                row[i + x] = char;
             }
         }
 
         Ok(())
     }
 
-    fn get_char_i(&self, i: usize) -> char {
-        self.elements[i]
-    }
+    pub fn place_word_vertical(&mut self, word: &str, y: usize, x: usize) -> anyhow::Result<()> {
+        // Check if start coords are in bounds
+        Self::bounds_check_coords(y, x)?;
 
-    fn get_char(&self, y: usize, x: usize) -> char {
-        self.elements[y * Self::ROW_LENGTH + x]
-    }
+        // Check if end coords are in bounds
+        Self::bounds_check_coords(y + word.len(), x).context(format!(
+            "Word '{}' len does not pass bounds check\n| Start: (y: {:X}, x: {:X}), End: (y: {:X}, x: {:X})",
+            word,
+            y,
+            x,
+            y + word.len(),
+            x,
+        ))?;
 
-    fn set_char(&mut self, y: usize, x: usize, c: char) -> anyhow::Result<()> {
-        if x < Self::COL_LENGTH && y < Self::ROW_LENGTH {
-            let index = Self::coords_to_index(x, y)?;
-            self.elements[index] = c;
-            Ok(())
-        } else {
-            Err(anyhow!("Coordinates out of bounds"))
+        // If both succeed, then we must be able to place the word
+        
+        for i in 0..word.len() {
+            if let Some(row) = self.elements.get_mut(y + i) {
+                if let Some(cell) = row.get_mut(x) {
+                    *cell = word.chars().nth(i).unwrap();
+                }
+            }
         }
-    }
 
-    fn set_char_i(&mut self, i: usize, c: char) -> anyhow::Result<()> {
-        if i < Self::BOARD_SIZE {
-            self.elements[i] = c;
-            Ok(())
-        } else {
-            Err(anyhow!("Index out of bounds"))
-        }
+        Ok(())
     }
 }
