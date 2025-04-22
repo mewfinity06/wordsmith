@@ -195,7 +195,13 @@ impl Board {
         println!("{}", Self::TERMINAL_COLOR_DEFAULT);
     }
 
-    pub fn place_word(&mut self, word: &str, y: usize, x: usize, dir: Direction) -> anyhow::Result<()> {
+    pub fn place_word(
+        &mut self,
+        word: &str,
+        y: usize,
+        x: usize,
+        dir: Direction,
+    ) -> anyhow::Result<()> {
         match dir {
             Direction::Horizontal => self.place_word_horizontal(word, y, x),
             Direction::Vertical => self.place_word_vertical(word, y, x),
@@ -220,8 +226,15 @@ impl Board {
         let row = &mut self.elements[y];
         let mut word_chars = word.chars();
         for i in 0..word.len() {
-            if let Some(char) = word_chars.next() {
-                row[i + x] = char;
+            if let Some(c) = word_chars.next() {
+                let cell = &mut row[i + x];
+
+                // Check if letters match
+                if *cell != '_' && *cell != '*' && *cell != c {
+                    return Err(anyhow!("Conflicting letter found {} in '{}'", c, word));
+                }
+
+                *cell = c;
             }
         }
 
@@ -243,11 +256,16 @@ impl Board {
         ))?;
 
         // If both succeed, then we must be able to place the word
-        
         for i in 0..word.len() {
             if let Some(row) = self.elements.get_mut(y + i) {
                 if let Some(cell) = row.get_mut(x) {
-                    *cell = word.chars().nth(i).unwrap();
+                    let c = word.chars().nth(i).unwrap();
+
+                    if *cell != '_' && *cell != '*' && *cell != c {
+                        return Err(anyhow!("Conflicting letter found {} in '{}'", c, word));
+                    }
+
+                    *cell = c;
                 }
             }
         }
