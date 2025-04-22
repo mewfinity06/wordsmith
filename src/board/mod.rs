@@ -195,7 +195,14 @@ impl Board {
         println!("{}", Self::TERMINAL_COLOR_DEFAULT);
     }
 
-    pub fn place_word_horizontal(&mut self, word: &str, y: usize, x: usize) -> anyhow::Result<()> {
+    pub fn place_word(&mut self, word: &str, y: usize, x: usize, dir: Direction) -> anyhow::Result<()> {
+        match dir {
+            Direction::Horizontal => self.place_word_horizontal(word, y, x),
+            Direction::Vertical => self.place_word_vertical(word, y, x),
+        }
+    }
+
+    fn place_word_horizontal(&mut self, word: &str, y: usize, x: usize) -> anyhow::Result<()> {
         // Check if start coords are in bounds
         Self::bounds_check_coords(y, x)?;
 
@@ -221,7 +228,7 @@ impl Board {
         Ok(())
     }
 
-    pub fn place_word_vertical(&mut self, word: &str, y: usize, x: usize) -> anyhow::Result<()> {
+    fn place_word_vertical(&mut self, word: &str, y: usize, x: usize) -> anyhow::Result<()> {
         // Check if start coords are in bounds
         Self::bounds_check_coords(y, x)?;
 
