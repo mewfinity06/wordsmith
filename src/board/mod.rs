@@ -273,3 +273,6 @@ impl Board {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test;
